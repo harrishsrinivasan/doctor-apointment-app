@@ -6,10 +6,13 @@ const bookingSchema = new mongoose.Schema({
         ref: 'Doctor',
         required: true
     },
-    userEmail: {
-        type: String,
-        required: true
-    },
+    // Changed from just email to full patient details
+    patientName: { type: String, required: true },
+    patientEmail: { type: String, required: true },
+    patientAge: { type: Number, required: true },
+    patientGender: { type: String, required: true },
+    reasonForVisit: { type: String },
+    
     status: {
         type: String,
         enum: ['PENDING', 'CONFIRMED', 'FAILED', 'EXPIRED'],
