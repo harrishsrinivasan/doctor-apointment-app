@@ -12,48 +12,50 @@ const doctorsList = [
     { name: "Dr. Gregory House", spec: "Diagnostics" },
     { name: "Dr. Shaun Murphy", spec: "General Surgeon" },
     { name: "Dr. Stephen Strange", spec: "Neurosurgeon" },
-    { name: "Dr. Meredith Grey", spec: "General Surgery" }
+    { name: "Dr. Meredith Grey", spec: "General Surgery" },
+    { name: "Dr. Derek Shepherd", spec: "Neurology" }
 ];
 
-// Helper to create dates
-const getDate = (daysFromNow, hour) => {
+// Helper to create a specific time on a specific day
+const getDateTime = (daysFromNow, hour, minute) => {
     const d = new Date();
     d.setDate(d.getDate() + daysFromNow);
-    d.setHours(hour, 0, 0, 0);
+    d.setHours(hour, minute, 0, 0);
     return d;
 };
 
 const generateSlots = () => {
     const slots = [];
-    doctorsList.forEach(doc => {
-        // Create 3 days of slots for each doctor
-        for (let day = 0; day < 3; day++) {
-            // Morning Slot (10 AM)
-            slots.push({
-                doctorName: doc.name,
-                specialization: doc.spec,
-                startTime: getDate(day, 10),
-                totalSlots: 5,
-                availableSlots: 5
-            });
-            // Afternoon Slot (2 PM)
-            slots.push({
-                doctorName: doc.name,
-                specialization: doc.spec,
-                startTime: getDate(day, 14),
-                totalSlots: 5,
-                availableSlots: Math.floor(Math.random() * 5) // Random availability
-            });
-            // Evening Slot (5 PM)
-            slots.push({
-                doctorName: doc.name,
-                specialization: doc.spec,
-                startTime: getDate(day, 17),
-                totalSlots: 5,
-                availableSlots: 5
-            });
-        }
-    });
+    
+    // Generate slots for Today, Tomorrow, and Day After (3 days)
+    for (let day = 0; day < 3; day++) {
+        doctorsList.forEach(doc => {
+            
+            // Loop from 10 AM (10) to 5 PM (17)
+            for (let hour = 10; hour <= 17; hour++) {
+                
+                // 20-minute intervals: 00, 20, 40
+                const minutes = [0, 20, 40];
+
+                minutes.forEach(minute => {
+                    // Stop if we go past 5:20 PM
+                    if (hour === 17 && minute > 20) return;
+
+                    // Randomly decide if this slot is already "booked" (taken)
+                    // 80% chance it's free, 20% chance it's taken
+                    const isAvailable = Math.random() > 0.2; 
+
+                    slots.push({
+                        doctorName: doc.name,
+                        specialization: doc.spec,
+                        startTime: getDateTime(day, hour, minute),
+                        totalSlots: 1,      // It's a single appointment slot
+                        availableSlots: isAvailable ? 1 : 0 // 1 = Free, 0 = Booked
+                    });
+                });
+            }
+        });
+    }
     return slots;
 };
 
@@ -61,7 +63,7 @@ const importData = async () => {
     try {
         await Doctor.deleteMany(); // Clear old data
         await Doctor.insertMany(generateSlots());
-        console.log('✅ Doctors & Slots Seeded Successfully!');
+        console.log('✅ Generated 20-min interval slots for 3 days!');
         process.exit();
     } catch (error) {
         console.error(`Error: ${error.message}`);
