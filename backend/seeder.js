@@ -4,9 +4,24 @@ const Doctor = require('./models/Doctor');
 
 dotenv.config();
 
-mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log('MongoDB Connected for Seeding...'))
-    .catch(err => { console.error(err); process.exit(1); });
+// Connect to MongoDB Atlas with proper configuration
+const connectDB = async () => {
+    try {
+        const conn = await mongoose.connect(process.env.MONGO_URI, {
+            dbName: 'doctor_appointment_db', // Use the same database name as the main app
+            // MongoDB Atlas connection options
+            serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
+            socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
+        });
+        console.log(`✅ MongoDB Atlas Connected: ${conn.connection.host}`);
+        console.log(`📊 Database: ${conn.connection.name}`);
+        return conn;
+    } catch (error) {
+        console.error(`❌ MongoDB connection error: ${error.message}`);
+        console.error('Make sure your MONGO_URI is correct and your IP is whitelisted in Atlas.');
+        process.exit(1);
+    }
+};
 
 const doctorsList = [
     { name: "Dr. Gregory House", spec: "Diagnostics" },
@@ -61,14 +76,36 @@ const generateSlots = () => {
 
 const importData = async () => {
     try {
-        await Doctor.deleteMany(); // Clear old data
-        await Doctor.insertMany(generateSlots());
+        console.log('🗑️  Clearing existing doctor slots...');
+        const deleteResult = await Doctor.deleteMany({});
+        console.log(`   Deleted ${deleteResult.deletedCount} existing slots`);
+        
+        console.log('📝 Generating new slots...');
+        const slots = generateSlots();
+        console.log(`   Generated ${slots.length} slots`);
+        
+        console.log('💾 Inserting slots into database...');
+        const result = await Doctor.insertMany(slots);
+        console.log(`✅ Successfully inserted ${result.length} slots!`);
         console.log('✅ Generated 20-min interval slots for 3 days!');
-        process.exit();
+        
+        // Close the connection
+        await mongoose.connection.close();
+        console.log('🔌 MongoDB connection closed.');
+        process.exit(0);
     } catch (error) {
-        console.error(`Error: ${error.message}`);
+        console.error(`❌ Error during seeding: ${error.message}`);
+        if (error.name === 'BulkWriteError') {
+            console.error('   Some documents may have failed to insert. Check for duplicates.');
+        }
+        // Close connection even on error
+        await mongoose.connection.close().catch(() => {});
         process.exit(1);
     }
 };
 
-importData();
+// Run the seeder
+(async () => {
+    await connectDB();
+    await importData();
+})();
