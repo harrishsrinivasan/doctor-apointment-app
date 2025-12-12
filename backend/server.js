@@ -17,11 +17,43 @@ const app = express();
 // Middleware
 app.use(express.json());
 
-// CORS Configuration - Allow access from anywhere (or specify your frontend URL)
+// CORS Configuration - Allow access from frontend URL
+// Set FRONTEND_URL environment variable in Vercel to your frontend domain
+// Example: https://your-frontend-app.vercel.app
+const allowedOrigins = [
+    process.env.FRONTEND_URL,
+    'http://localhost:3000',
+    'http://localhost:3001'
+].filter(Boolean); // Remove undefined values
+
 app.use(cors({
-    origin: '*', // CHANGE THIS to your specific frontend URL in production for security
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    credentials: true
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps, curl, or server-to-server)
+        if (!origin) return callback(null, true);
+        
+        // In development, allow all origins
+        if (process.env.NODE_ENV !== 'production') {
+            return callback(null, true);
+        }
+        
+        // In production, check against allowed origins
+        if (allowedOrigins.length === 0) {
+            // If no FRONTEND_URL is set, allow all (less secure but works)
+            // TODO: Set FRONTEND_URL in Vercel environment variables for better security
+            console.warn('FRONTEND_URL not set. Allowing all origins. Set FRONTEND_URL in Vercel for better security.');
+            return callback(null, true);
+        }
+        
+        if (allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            console.warn(`CORS blocked origin: ${origin}. Allowed origins: ${allowedOrigins.join(', ')}`);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Routes
